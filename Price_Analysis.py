@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-file_in = r"C:\Users\27761\Desktop\Research\IMC2021\Price_Analysis\urban_price_ISP - Data.tsv"
+file_in = r"C:\Users\27761\Desktop\Research\IMC2021\URSPriceAnalysis\urban_price_ISP - Data.tsv"
+income_file_in = r"C:\Users\27761\Desktop\Research\IMC2021\URSPriceAnalysis\state_income.csv"
 max_interested_mbps = 9999
 min_interested_mbps = 0
 min_quota_in_gb = 1000
@@ -89,13 +90,36 @@ def unpack_dict(data):
         keys.append(key)
         values.append(value)
     return keys,values
-def plot_cost_metric_all(data):
+def plot_cost_metric_all(data,income_data):
     states, cost_metrics = unpack_dict(data)
+    apply_weight(income_data,states,cost_metrics)
+    #print(states)
+    #print(cost_metrics)
+    dictionary = dict(zip(states, cost_metrics))
+    states, cost_metrics = unpack_dict(dictionary)
     plt.bar(states,cost_metrics) 
+
+def apply_weight(income_data,states, cost_metrics):
+    max_income = income_data["median_income_bgp"].max()
+    for i in range(len(states)):
+        state = states[i]
+        weight = 1
+
+        
+        #print(income_data[income_data["State_y"].str.upper() == state].median_income_bgp.iat[0])
+
+
+        if income_data["State_y"].str.upper().str.contains(state).any():
+            weight = 1/((income_data[income_data["State_y"].str.upper() == state].median_income_bgp.iat[0])/max_income)
+            cost_metrics[i] = cost_metrics[i] * weight
+        print(weight)
+
+
 
 def main():
     df = pd.read_csv(file_in, sep= "\t").dropna().replace("Inf", 9999).replace("Unlimited",9999)
     df = df.loc[(df["Usage Allowance GB"].astype(float) > min_quota_in_gb) & (df["Download Bandwidth Mbps"].astype(float) < max_interested_mbps) & (df["Download Bandwidth Mbps"].astype(float) > min_interested_mbps)]
+    income_df = pd.read_csv(income_file_in)
     states = sorted(df["State"].unique())
     download_res = {}
     upload_res ={}
@@ -108,7 +132,7 @@ def main():
         calculate_cost_metric_for_state(state_values, state,download_cost_metric,upload_cost_metric)
 
     cost_metric = find_median_of_all_states(download_cost_metric)
-    plot_cost_metric_all(cost_metric)
+    plot_cost_metric_all(cost_metric,income_df)
     #print(download_cost_metric)
     #print(download_res.keys())
     #plot_all_state(download_res,states)
