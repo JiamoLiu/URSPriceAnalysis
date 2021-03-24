@@ -1,6 +1,10 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 file_in = r"C:\Users\27761\Desktop\Research\IMC2021\Price_Analysis\urban_price_ISP - Data.tsv"
+max_interested_mbps = 9999
+min_interested_mbps = 0
+min_quota_in_gb = 1000
+from statistics import median
 
 def get_mbps_and_cost_from_result(data):
     keys = data.keys()
@@ -38,8 +42,6 @@ def add_to_res_dict(dict,  up_down_value, cost,state_name):
 
 
 def get_mbps_per_usd_for_state(state_data,state_name,download_res,upload_res):
-    
-    
     for index, row in state_data.iterrows():
         download = row["Download Bandwidth Mbps"]   
         upload = row["Upload Bandwidth Mbps"]
@@ -48,28 +50,80 @@ def get_mbps_per_usd_for_state(state_data,state_name,download_res,upload_res):
         add_to_res_dict(upload_res, upload,charge,state_name)
     return download_res, upload_res
 
+def calculate_cost_metric_for_state(state_data, state_name, download_res, upload_res):
+    if state_name not in download_res:
+        download_res[state_name] = {}
 
+    if state_name not in upload_res:
+        upload_res[state_name] = {}
 
+    down_res =[]
+    up_res = []
+    for index, row in state_data.iterrows():
+        download = row["Download Bandwidth Mbps"]   
+        upload = row["Upload Bandwidth Mbps"]
+        charge = row["Monthly Charge"]
+        down_cost_metric = charge/download
+        up_cost_metric = charge/upload
+        down_res.append(down_cost_metric)
+        up_res.append(up_cost_metric)
+
+    download_res[state_name] = down_res
+    upload_res[state_name] = up_res
+    return download_res,upload_res
     #print(state_data.index)
 
+def find_median_of_all_states(data):
+    res = {}
+    for state in data.keys():
+        res[state] = median(data[state])
+    return res
+
+#Find median of cost metric between 0-200
+#Find 25->95 jump between price and speed
+
+def unpack_dict(data):
+    keys = []
+    values = []
+    for key,value in sorted(data.items(), key=lambda x: x[1]):
+        keys.append(key)
+        values.append(value)
+    return keys,values
+def plot_cost_metric_all(data):
+    states, cost_metrics = unpack_dict(data)
+    plt.bar(states,cost_metrics) 
 
 def main():
     df = pd.read_csv(file_in, sep= "\t").dropna().replace("Inf", 9999).replace("Unlimited",9999)
-    df = df.loc[( df["Usage Allowance GB"].astype(float) > 1000)]
+    df = df.loc[(df["Usage Allowance GB"].astype(float) > min_quota_in_gb) & (df["Download Bandwidth Mbps"].astype(float) < max_interested_mbps) & (df["Download Bandwidth Mbps"].astype(float) > min_interested_mbps)]
     states = sorted(df["State"].unique())
     download_res = {}
     upload_res ={}
+
+    download_cost_metric ={}
+    upload_cost_metric={}
     for state in states:
         state_values = df.loc[df["State"] == state]
         get_mbps_per_usd_for_state(state_values, state,download_res,upload_res)
+        calculate_cost_metric_for_state(state_values, state,download_cost_metric,upload_cost_metric)
 
-    print(download_res.keys())
+    cost_metric = find_median_of_all_states(download_cost_metric)
+    plot_cost_metric_all(cost_metric)
+    #print(download_cost_metric)
+    #print(download_res.keys())
     #plot_all_state(download_res,states)
-    plot_state("NEW JERSEY", download_res)
-    plot_state("ARIZONA", download_res)    
-    plot_state("GEORGIA", download_res) 
-    plot_state("MASSACHUSETTS", download_res) 
-    plt.xlim([0,200])
-    plt.legend(loc="upper right")    
+    #plot_state("NEW JERSEY", download_res)
+    #plot_state("ARIZONA", download_res)    
+    #plot_state("GEORGIA", download_res) 
+    #plot_state("MASSACHUSETTS", download_res) 
+    #plt.xlim([0,200])
+    plt.legend(loc="upper right")
+    plt.xticks(rotation=90)
+    #print(download_res["NEW JERSEY"])    
+    #print(download_res["ARIZONA"])
+    #print(download_res["MASSACHUSETTS"])       
     plt.show()
+
+
+
 main()
