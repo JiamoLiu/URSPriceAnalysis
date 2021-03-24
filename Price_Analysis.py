@@ -19,7 +19,7 @@ def plot_all_state(data,states):
 def plot_state(state_name, data):
     data_temp = dict(sorted(data[state_name].items()))
     mbps,cost = get_mbps_and_cost_from_result(data_temp)
-    plt.plot(mbps,cost ,label = state_name)
+    plt.scatter(mbps,cost ,label = state_name)
     
 
 
