@@ -97,22 +97,48 @@ def plot_cost_metric_all(data,income_data):
     #print(cost_metrics)
     dictionary = dict(zip(states, cost_metrics))
     states, cost_metrics = unpack_dict(dictionary)
-    plt.bar(states,cost_metrics) 
+    plt.bar(states,cost_metrics)
+    
+def plot_jump_metric_all(data):
+    states, cost_metrics = unpack_dict(data)
+    #apply_weight(income_data,states,cost_metrics)
+    #print(states)
+    #print(cost_metrics)
+    #dictionary = dict(zip(states, cost_metrics))
+    #states, cost_metrics = unpack_dict(dictionary)
+    plt.bar(states,cost_metrics)     
 
 def apply_weight(income_data,states, cost_metrics):
     max_income = income_data["median_income_bgp"].max()
     for i in range(len(states)):
         state = states[i]
         weight = 1
-
-        
         #print(income_data[income_data["State_y"].str.upper() == state].median_income_bgp.iat[0])
-
-
         if income_data["State_y"].str.upper().str.contains(state).any():
             weight = 1/((income_data[income_data["State_y"].str.upper() == state].median_income_bgp.iat[0])/max_income)
             cost_metrics[i] = cost_metrics[i] * weight
-        print(weight)
+        #print(weight)
+
+def get_25_75_jump(state_data, state_name, download_res, upload_res):
+    
+
+    download_25 = state_data["Download Bandwidth Mbps"].quantile(0.25)
+    download_75 = state_data["Download Bandwidth Mbps"].quantile(0.75)
+    upload_25 = state_data["Upload Bandwidth Mbps"].quantile(0.25)
+    upload_75 = state_data["Upload Bandwidth Mbps"].quantile(0.75)
+
+    cost_25 = state_data["Monthly Charge"].quantile(0.25)
+    cost_75 = state_data["Monthly Charge"].quantile(0.75)
+
+    print("price:")
+    print(cost_75,cost_25)
+    print("speed:")
+    print(download_75,download_25)
+    download_res[state_name] = (cost_75 - cost_25)/(download_75-download_25)
+    upload_res[state_name] = (cost_75 - cost_25)/(upload_75-upload_25)
+
+    #print(download_res)                  
+    return download_res,upload_res
 
 
 
@@ -126,13 +152,18 @@ def main():
 
     download_cost_metric ={}
     upload_cost_metric={}
+
+    download_jump_res = {}
+    upload_jump_res = {}
     for state in states:
         state_values = df.loc[df["State"] == state]
         get_mbps_per_usd_for_state(state_values, state,download_res,upload_res)
         calculate_cost_metric_for_state(state_values, state,download_cost_metric,upload_cost_metric)
+        get_25_75_jump(state_values, state, download_jump_res, upload_jump_res)
 
     cost_metric = find_median_of_all_states(download_cost_metric)
-    plot_cost_metric_all(cost_metric,income_df)
+    #plot_cost_metric_all(cost_metric,income_df)
+    plot_jump_metric_all(download_jump_res)
     #print(download_cost_metric)
     #print(download_res.keys())
     #plot_all_state(download_res,states)
